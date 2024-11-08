@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Consulta MySQL</title>
+    <style>
+        body { 
+            padding: 20px; 
+            font-family: Arial; 
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .form-group { 
+            margin-bottom: 10px; 
+        }
+        input, textarea { 
+            width: 100%; 
+            margin-bottom: 10px; 
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+        }
+        button { 
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error { 
+            color: red;
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .no-results {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h2>Consulta MySQL</h2>
+    <div class="form-group">
+        <label>Usuário:</label>
+        <input type="text" id="username">
+    </div>
+    <div class="form-group">
+        <label>Senha:</label>
+        <input type="password" id="password">
+    </div>
+    <div class="form-group">
+        <label>Query SQL:</label>
+        <textarea id="query" placeholder="Digite sua consulta SQL aqui..."></textarea>
+    </div>
+    <button onclick="executarQuery()">Executar</button>
+    <div id="error" class="error"></div>
+    <div id="results"></div>
+
+    <script>
+        function criarTabela(data) {
+            if (!Array.isArray(data) || data.length === 0) {
+                return '<div class="no-results">Nenhum resultado encontrado</div>';
+            }
+
+            const colunas = Object.keys(data[0]);
+            
+            let html = '<table>';
+            
+            // Cabeçalho
+            html += '<thead><tr>';
+            colunas.forEach(coluna => {
+                html += `<th>${coluna}</th>`;
+            });
+            html += '</tr></thead>';
+            
+            // Corpo
+            html += '<tbody>';
+            data.forEach(row => {
+                html += '<tr>';
+                colunas.forEach(coluna => {
+                    // Tratamento para valores null/undefined
+                    const valor = row[coluna] === null || row[coluna] === undefined 
+                        ? '' 
+                        : row[coluna];
+                    html += `<td>${valor}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            
+            return html;
+        }
+
+        async function executarQuery() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const query = document.getElementById('query').value;
+            const errorDiv = document.getElementById('error');
+            const resultsDiv = document.getElementById('results');
+
+            // Limpa resultados anteriores
+            errorDiv.textContent = '';
+            resultsDiv.innerHTML = '<div class="loading">Executando consulta...</div>';
+
+            try {
+                console.log('Iniciando requisição...');
+                const response = await fetch('http://localhost:3000/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password, query })
+                });
+
+                console.log('Resposta recebida:', response.status);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erro na consulta');
+                }
+
+                // Exibe os resultados em formato de tabela
+                resultsDiv.innerHTML = criarTabela(data);
+                
+                // Se houver resultados, adiciona uma mensagem com a contagem
+                if (Array.isArray(data) && data.length > 0) {
+                    const countMessage = `<div style="margin-top: 10px; color: #666;">
+                        ${data.length} registro(s) encontrado(s)
+                    </div>`;
+                    resultsDiv.insertAdjacentHTML('beforeend', countMessage);
+                }
+
+            } catch (error) {
+                console.error('Erro:', error);
+                errorDiv.textContent = error.message;
+                resultsDiv.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>
